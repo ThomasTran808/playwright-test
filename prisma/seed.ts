@@ -1,8 +1,12 @@
+import 'dotenv/config';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, Role, Condition } from '@prisma/client';
 import { hash } from 'bcrypt';
-import * as config from '../config/settings.development.json';
+import * as config from '../config/settings.development.json' assert { type: 'json' };
 
-const prisma = new PrismaClient();
+const connectionString = `${process.env.DATABASE_URL}`;
+const adapter = new PrismaPg({ connectionString });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log('Seeding the database');
@@ -12,16 +16,13 @@ async function main() {
     console.log(`  Creating user: ${account.email} with role: ${role}`);
     await prisma.user.upsert({
       where: { email: account.email },
-      update: {
-        password,
-      },
+      update: { password },
       create: {
         email: account.email,
         password,
         role,
       },
     });
-    // console.log(`  Created user: ${user.email} with role: ${user.role}`);
   });
   for (const data of config.defaultData) {
     const condition = data.condition as Condition || Condition.good;
@@ -38,6 +39,7 @@ async function main() {
     });
   }
 }
+
 main()
   .then(() => prisma.$disconnect())
   .catch(async (e) => {
